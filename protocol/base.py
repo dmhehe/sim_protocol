@@ -29,7 +29,13 @@ class Data:
     def __init__(self, itype, value=None, list_data_cls=None) -> None:
         self.itype = itype
         self.value = value
-        self.list_data_cls = list_data_cls 
+        self.list_data_cls = list_data_cls
+        if self.itype not in TYPE_LIST:
+            raise Exception("itype error")
+        
+        if self.itype == LIST:
+            if list_data_cls is None:
+                raise Exception("list_data_cls is None")
 
     def get_itype(self):
         return self.itype

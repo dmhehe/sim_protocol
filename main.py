@@ -5,7 +5,7 @@ import glob
 import importlib
 import inspect
 from protocol.base import *
-
+import json
 
 
 def get_source_code(cls):
@@ -88,8 +88,8 @@ class MakeJson:
             if attrList[0] != "tid" or attrList[1] != "subtid":
                 raise Exception("tid error in " +  str_code) 
 
-            tid = cls_type.__dict__["tid"].getvalue()
-            subtid = cls_type.__dict__["subtid"].getvalue()
+            tid = cls_type.__dict__["tid"].get_value()
+            subtid = cls_type.__dict__["subtid"].get_value()
 
         for attr_name in attrList:
             if attr_name in ("tid", "subtid"):
@@ -108,7 +108,7 @@ class MakeJson:
 
         return tid, subtid, ans_list
         
-    def make_server_json(self):
+    def make_json(self):
         for name, cls_type in self.m_S2C_Class_Dict.items():
             tid, subtid, json_list = self.get_cls_json(cls_type)
             if tid not in self.m_S2C_Json:
@@ -125,12 +125,27 @@ class MakeJson:
 
             dict1 = self.m_C2S_Json[tid]
             dict1[subtid] = json_list
+            
+        self.output_json("s2c.json", self.m_S2C_Json)
+        self.output_json("c2s.json", self.m_C2S_Json)
+        self.output_py("s2c.py", self.m_S2C_Json, "g_S2C")
+        self.output_py("c2s.py", self.m_C2S_Json, "g_C2S")
 
+    def output_py(self, file_path, new_data, name):
+        dict_string = repr(new_data)
+        with open(file_path, 'w', encoding='utf-8') as file:
+            file.write(name + ' = ' + dict_string)
+            
+    def output_json(self, file_path, new_data):
+        with open(file_path, 'w', encoding='utf-8') as file:
+            json.dump(new_data, file, ensure_ascii=False, indent=4)
+            
+            
 def main():
     folder_path = "protocol"
     obj = MakeJson()
     obj.import_and_print_classes_in_files(folder_path)
-    obj.make_server_json()
+    obj.make_json()
     
 
 main()
