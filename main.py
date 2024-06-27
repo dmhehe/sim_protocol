@@ -73,7 +73,7 @@ class MakeJson:
         print("111111111111", cls_type, short_code)
         attrList = []
         for attr_name, attr_value in cls_type.__dict__.items():
-            if isinstance(attr_value, Data):
+            if isinstance(attr_value, D):
                 if short_code.find(attr_name+"=") < 0:
                     raise Exception("attr error "+attr_name)
                 
