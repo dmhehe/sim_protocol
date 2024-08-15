@@ -1,6 +1,14 @@
 
-# from protocol.base import *
-from base import *
+from protocol.base import *
+
+
+
+#物品
+class item:
+    id = i
+    name = s
+    num = i
+
 
 #  i是64位整形  s是字符串
 
@@ -17,6 +25,10 @@ class S2COneInfo(S2C(S2C_PLAYER, 2)):
     attname = s #属性名字
     val = i   #属性值
 
+
+class S2CAllItem(S2C(S2C_PLAYER, 3)):
+    first_item = item
+    item_list = [item]
 
 
 #客户端发给服务端

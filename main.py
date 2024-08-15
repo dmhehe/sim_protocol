@@ -21,14 +21,17 @@ def get_source_code(cls):
 
 class MakeJson:
     def __init__(self) -> None:
+        #放S2C类的字典
         self.m_S2C_Class_Dict = {}
+        #放C2S类的字典
         self.m_C2S_Class_Dict = {}
+        #放其他类的字典
         self.m_Other_Class_Dict = {}
 
         self.m_S2C_Json = {}
         self.m_C2S_Json = {}
 
-    def print_class_names(self, module_name):
+    def init_class_names(self, module_name):
         module = importlib.import_module(module_name)
         classes = inspect.getmembers(module, inspect.isclass)
         # class_names = [cls[0] for cls in classes]
@@ -37,7 +40,7 @@ class MakeJson:
 
         module_name = module_name.replace("protocol.", "")
 
-        
+        #获取遍历里面的所有类
         for cls in classes:
             cls_name = cls[0]
             cls_type = cls[1]
@@ -52,8 +55,8 @@ class MakeJson:
 
 
 
-
-    def import_and_print_classes_in_files(self, folder_path):
+    #加载文件夹下的所有py文件
+    def import_classes_in_files(self, folder_path):
         py_files = glob.glob(os.path.join(folder_path, "*.py"))
 
 
@@ -61,13 +64,18 @@ class MakeJson:
             module_name = os.path.basename(py_file)[:-3]  # Remove .py extension
             print(f"Importing module {module_name} from {py_file}")
             module_name = f"{os.path.basename(folder_path)}.{module_name}"
-            self.print_class_names(module_name)
+            self.init_class_names(module_name)
 
 
     def get_cls_json(self, cls_type):
         ans_list = []
-        tid = None
-        subtid = None
+        mid1 = cls_type.__base__.mid1
+        mid2 = cls_type.__base__.mid2
+        
+        if not(type(mid1) is int and type(mid1) is int):
+            raise Exception("mid1, mid2 must be int")
+
+        
         str_code = get_source_code(cls_type)
         short_code = "".join(str_code.split())
         print("111111111111", cls_type, short_code)
@@ -84,47 +92,58 @@ class MakeJson:
 
         attrList.sort(key=sortFunc)
 
-        if "tid" in attrList:  #如果 有 tid  那必须放在第一位置
-            if attrList[0] != "tid" or attrList[1] != "subtid":
-                raise Exception("tid error in " +  str_code) 
-
-            tid = cls_type.__dict__["tid"].get_value()
-            subtid = cls_type.__dict__["subtid"].get_value()
+        #不能用变量命名为mid11 和 mid1
+        if "mid1" in attrList or "mid2" in attrList:  
+            raise Exception("mid1, mid2 must not in" +  str_code) 
 
         for attr_name in attrList:
-            if attr_name in ("tid", "subtid"):
-                continue
-
             attr_value = cls_type.__dict__[attr_name]
+            
+            item_attr = attr_value
+            
+            isList = False
+            if type(attr_value) is list:
+                isList = True
+                if len(attr_name) > 1:
+                    raise Exception("attr error "+attr_name)
+
+                item_attr = attr_value[0]
+                
+            if isinstance(item_attr, int) or isinstance(item_attr, str) or isinstance(item_attr, float):
+                raise Exception("attr error "+attr_name)
+            
             itype = attr_value.get_itype()
             
             print(f"jjjjjjjjjjjj   {attr_name}: {attr_value}")
-            if itype == LIST:
-                list_data_cls = self.get_list_data_cls()
-                _, _, ans_list2 = self.get_cls_json(list_data_cls)
-                ans_list.append((attr_name, LIST, ans_list2))
+            if isList:
+                _, _, ans_list2 = self.get_cls_json(itype)
+                #类型版本 和  对应的list类型就是相差100
+                ans_list.append((itype+100, attr_name, ans_list2))
+            elif not isinstance(item_attr, D):
+                _, _, ans_list2 = self.get_cls_json(itype)
+                ans_list.append((OBJ, attr_name, ans_list2))
             else:
-                ans_list.append((attr_name, itype))
+                ans_list.append((itype, attr_name))
 
-        return tid, subtid, ans_list
+        return mid1, mid2, ans_list
         
     def make_json(self):
         for name, cls_type in self.m_S2C_Class_Dict.items():
-            tid, subtid, json_list = self.get_cls_json(cls_type)
-            if tid not in self.m_S2C_Json:
-                self.m_S2C_Json[tid] = {}
+            mid1, mid2, json_list = self.get_cls_json(cls_type)
+            if mid1 not in self.m_S2C_Json:
+                self.m_S2C_Json[mid1] = {}
 
-            dict1 = self.m_S2C_Json[tid]
-            dict1[subtid] = json_list
+            dict1 = self.m_S2C_Json[mid1]
+            dict1[mid2] = json_list
 
 
         for name, cls_type in self.m_C2S_Class_Dict.items():
-            tid, subtid, json_list = self.get_cls_json(cls_type)
-            if tid not in self.m_C2S_Json:
-                self.m_C2S_Json[tid] = {}
+            mid1, mid2, json_list = self.get_cls_json(cls_type)
+            if mid1 not in self.m_C2S_Json:
+                self.m_C2S_Json[mid1] = {}
 
-            dict1 = self.m_C2S_Json[tid]
-            dict1[subtid] = json_list
+            dict1 = self.m_C2S_Json[mid1]
+            dict1[mid2] = json_list
             
         self.output_json("s2c.json", self.m_S2C_Json)
         self.output_json("c2s.json", self.m_C2S_Json)
@@ -144,7 +163,7 @@ class MakeJson:
 def main():
     folder_path = "protocol"
     obj = MakeJson()
-    obj.import_and_print_classes_in_files(folder_path)
+    obj.import_classes_in_files(folder_path)
     obj.make_json()
     
 
