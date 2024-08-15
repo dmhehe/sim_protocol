@@ -69,22 +69,24 @@ class MakeJson:
 
     def get_cls_json(self, cls_type):
         ans_list = []
-        mid1 = cls_type.__base__.mid1
-        mid2 = cls_type.__base__.mid2
         
-        if not(type(mid1) is int and type(mid1) is int):
-            raise Exception("mid1, mid2 must be int")
+        mid1 = None
+        mid2 = None
+        try:
+            mid1 = cls_type.__base__.mid1
+            mid2 = cls_type.__base__.mid2
+        except:
+            pass
+        
+        # if not(type(mid1) is int and type(mid1) is int):
+        #     raise Exception("mid1, mid2 must be int")
 
-        
         str_code = get_source_code(cls_type)
         short_code = "".join(str_code.split())
-        print("111111111111", cls_type, short_code)
+        
         attrList = []
         for attr_name, attr_value in cls_type.__dict__.items():
-            if isinstance(attr_value, D):
-                if short_code.find(attr_name+"=") < 0:
-                    raise Exception("attr error "+attr_name)
-                
+            if short_code.find(attr_name) >= 0:#数据必须在代码上有定义
                 attrList.append(attr_name)
 
         def sortFunc(attr_name):
@@ -104,25 +106,27 @@ class MakeJson:
             isList = False
             if type(attr_value) is list:
                 isList = True
-                if len(attr_name) > 1:
+                if len(attr_value) > 1:
                     raise Exception("attr error "+attr_name)
 
                 item_attr = attr_value[0]
                 
-            if isinstance(item_attr, int) or isinstance(item_attr, str) or isinstance(item_attr, float):
-                raise Exception("attr error "+attr_name)
+            # if isinstance(item_attr, int) or isinstance(item_attr, str) or isinstance(item_attr, float):
+            #     raise Exception("attr error "+attr_name)
             
-            itype = attr_value.get_itype()
+            #这个数据的类型
+            itype = 1
+            if isinstance(item_attr, D):
+                itype = attr_value.get_itype()
             
-            print(f"jjjjjjjjjjjj   {attr_name}: {attr_value}")
-            if isList:
-                _, _, ans_list2 = self.get_cls_json(itype)
+            if isList:  #列表类型
+                _, _, ans_list2 = self.get_cls_json(item_attr)
                 #类型版本 和  对应的list类型就是相差100
                 ans_list.append((itype+100, attr_name, ans_list2))
-            elif not isinstance(item_attr, D):
-                _, _, ans_list2 = self.get_cls_json(itype)
+            elif not isinstance(item_attr, D):#自定义类型
+                _, _, ans_list2 = self.get_cls_json(item_attr)
                 ans_list.append((OBJ, attr_name, ans_list2))
-            else:
+            else:#基础类型
                 ans_list.append((itype, attr_name))
 
         return mid1, mid2, ans_list
