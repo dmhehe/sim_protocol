@@ -20,15 +20,7 @@ def get_source_code(cls):
 
 
 
-g_FUNC_S2C_TEXT_2="""
-def AAAFunc_2(pid:int, data:DateType):
-    doSendData(pid, DateMid1, DateMid2, data)
 
-"""
-
-g_S2C_DATA_TEXT="""
-class DateType(Protocol):
-"""
 
 
 class MakeJson:
@@ -181,8 +173,55 @@ class MakeJson:
         self.output_json("jsondata/c2s.json", self.m_C2S_Json)
         self.output_py_data("pydata/s2c.py", self.m_S2C_Json, "g_S2C")
         self.output_py_data("pydata/c2s.py", self.m_C2S_Json, "g_C2S")
-        
     
+    
+    
+    
+    
+    
+    
+
+#============================================================ pycode 开始============================================================
+    
+    s_FUNC_S2C_TEXT_1="""
+    def XXXFunc_1(pid:int XXXArgsList):
+        Prepare()
+        XXXPack
+        PacketSend(pid)
+    """
+
+
+    s_FUNC_S2C_TEXT_2="""
+    def XXXFunc_2(pid:int, data:XXXDateType):
+        doSendData(pid, XXXDateMid1, XXXDateMid2, data)
+
+    """
+
+    s_S2C_DATA_TEXT="""
+    class XXXDateType(Protocol):
+    """
+    
+    def hasObjJsonList(self, json_list):
+        for i in json_list:
+            if isinstance(i, tuple):
+                if i[0] in [OBJ, OBJ_LIST]:
+                    return True
+        
+        return False
+    
+    
+    def make_code_text1(self, name, json_list):
+        #没有对象类型的json_list
+        args_list = []
+        pack_list = []
+        for i in json_list:
+            pass
+        
+        args_str = "".join(args_list)
+        pack_str = "\n".join(pack_list)
+        return self.s_FUNC_S2C_TEXT_1.replace("XXXFunc", name).replace("XXXArgsList", args_str).replace("XXXPack", pack_str)
+
+
     def make_py_code(self):
         self.del_directory("pycode")
         self._ensure_directory_exists("pycode")
@@ -191,10 +230,14 @@ class MakeJson:
             txt = "# -*- coding: utf-8 -*-\n\nfrom sendpublic import *\nfrom typing import Protocol\n\n"
             for name, cls_type in cls_dict.items():
                 mid1, mid2, json_list = self.get_cls_json(cls_type)
-                dataTypeName = "D_"+name
+                
+                if not self.hasObjJsonList(json_list):
+                    txt += self.make_code_text1(name, json_list)
+                
+                dataTypeName = "P_"+name
                 txt += self.make_code_datetype(dataTypeName, json_list)
                 
-                txt += g_FUNC_S2C_TEXT_2.replace("AAAFunc", name).replace("DateMid1", str(mid1)).replace("DateMid2", str(mid2)).replace("DateType", dataTypeName)
+                txt += self.s_FUNC_S2C_TEXT_2.replace("XXXFunc", name).replace("XXXDateMid1", str(mid1)).replace("XXXDateMid2", str(mid2)).replace("XXXDateType", dataTypeName)
             self.output_text(f"pycode/{module_name}.py", txt)
 
 
@@ -216,7 +259,7 @@ class MakeJson:
     
     def make_code_datetype(self, name, json_list):
         dataTypeName = name
-        dataType = g_S2C_DATA_TEXT.replace("DateType", dataTypeName)
+        dataType = self.s_S2C_DATA_TEXT.replace("XXXDateType", dataTypeName)
         
         for i in json_list:
             if isinstance(i, tuple):
@@ -232,6 +275,16 @@ class MakeJson:
                     typeName = self.getTypeStr(i[0])
                     dataType += f"    {i[1]}: {typeName}\n"
         return  dataType + "\n\n"
+
+
+
+#============================================================ pycode 结束============================================================
+
+
+
+
+
+
 
     def del_directory(self, directory):
         if os.path.exists(directory):
