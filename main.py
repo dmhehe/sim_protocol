@@ -184,22 +184,22 @@ class MakeJson:
 #============================================================ pycode 开始============================================================
     
     s_FUNC_S2C_TEXT_1="""
-    def XXXFunc_1(pid:int XXXArgsList):
-        Prepare()
-        XXXPack
-        PacketSend(pid)
-    """
+def XXXFunc_1(pid:int XXXArgsList):
+    Prepare()
+XXXPack
+    PacketSend(pid)
+"""
 
 
     s_FUNC_S2C_TEXT_2="""
-    def XXXFunc_2(pid:int, data:XXXDateType):
-        doSendData(pid, XXXDateMid1, XXXDateMid2, data)
+def XXXFunc_2(pid:int, data:XXXDateType):
+    doSendData(pid, XXXDateMid1, XXXDateMid2, data)
 
-    """
+"""
 
     s_S2C_DATA_TEXT="""
-    class XXXDateType(Protocol):
-    """
+class XXXDateType(Protocol):
+"""
     
     def hasObjJsonList(self, json_list):
         for i in json_list:
@@ -210,16 +210,33 @@ class MakeJson:
         return False
     
     
-    def make_code_text1(self, name, json_list):
+    def make_code_text1(self, funcname, json_list):
         #没有对象类型的json_list
         args_list = []
         pack_list = []
         for i in json_list:
-            pass
-        
+            itype = i[0]
+            name = i[1]
+            if itype in [INT_16, INT_32, INT_64]:
+                args_list.append(f", {name}: int")
+                pack_list.append(f"    PackInt({name})")
+            elif itype in [INT_16_LIST, INT_32_LIST, INT_64_LIST]:
+                args_list.append(f", {name}: list[int]")
+                pack_list.append(f"    PackInt(len({name}))")
+                pack_list.append(f"    for item in {name}:")
+                pack_list.append(f"        PackInt(item)")
+            elif itype == STR:
+                args_list.append(f", {name}: str")
+                pack_list.append(f"    PackString({name})")
+            elif itype == STR_LIST:
+                args_list.append(f", {name}: list[str]")
+                pack_list.append(f"    PackInt(len({name}))")
+                pack_list.append(f"    for item in {name}:")
+                pack_list.append(f"        PackString(item)")
+
         args_str = "".join(args_list)
         pack_str = "\n".join(pack_list)
-        return self.s_FUNC_S2C_TEXT_1.replace("XXXFunc", name).replace("XXXArgsList", args_str).replace("XXXPack", pack_str)
+        return self.s_FUNC_S2C_TEXT_1.replace("XXXFunc", funcname).replace("XXXArgsList", args_str).replace("XXXPack", pack_str)
 
 
     def make_py_code(self):
@@ -238,6 +255,8 @@ class MakeJson:
                 txt += self.make_code_datetype(dataTypeName, json_list)
                 
                 txt += self.s_FUNC_S2C_TEXT_2.replace("XXXFunc", name).replace("XXXDateMid1", str(mid1)).replace("XXXDateMid2", str(mid2)).replace("XXXDateType", dataTypeName)
+                
+                txt += "\n\n\n\n"
             self.output_text(f"pycode/{module_name}.py", txt)
 
 
