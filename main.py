@@ -6,6 +6,7 @@ import importlib
 import inspect
 from _protocol.base import *
 import json
+import shutil
 
 
 def get_source_code(cls):
@@ -19,18 +20,36 @@ def get_source_code(cls):
 
 
 
+g_FUNC_S2C_TEXT_2="""
+def AAAFunc_2(pid:int, data:DateType):
+    doSendData(pid, DateMid1, DateMid2, data)
+
+"""
+
+g_S2C_DATA_TEXT="""
+class DateType(Protocol):
+"""
+
+
 class MakeJson:
     def __init__(self) -> None:
         #放S2C类的字典
         self.m_S2C_Class_Dict = {}
+        self.m_Module_S2C_Class = {}
         #放C2S类的字典
         self.m_C2S_Class_Dict = {}
+        self.m_Module_C2S_Class = {}
         #放其他类的字典
         self.m_Other_Class_Dict = {}
-
+		
+  
+  
         self.m_S2C_Json = {}
         self.m_C2S_Json = {}
 
+  
+		
+  
     def init_class_names(self, module_name):
         module = importlib.import_module(module_name)
         classes = inspect.getmembers(module, inspect.isclass)
@@ -48,8 +67,12 @@ class MakeJson:
             name = module_name + "." + cls_name
             if cls_name.startswith("S2C"):
                 self.m_S2C_Class_Dict[name] = cls_type
+                self.m_Module_S2C_Class[module_name] = self.m_Module_S2C_Class.get(module_name, {})
+                self.m_Module_S2C_Class[module_name][cls_name] = cls_type
             elif cls_name.startswith("C2S"):
                 self.m_C2S_Class_Dict[name] = cls_type
+                self.m_Module_C2S_Class[module_name] = self.m_Module_C2S_Class.get(module_name, {})
+                self.m_Module_C2S_Class[module_name][cls_name] = cls_type
             else:
                 self.m_Other_Class_Dict[name] = cls_type
 
@@ -152,14 +175,69 @@ class MakeJson:
 
         self._ensure_directory_exists("jsondata")
         self._ensure_directory_exists("pydata")
-
+        
+        
         self.output_json("jsondata/s2c.json", self.m_S2C_Json)
         self.output_json("jsondata/c2s.json", self.m_C2S_Json)
         self.output_py_data("pydata/s2c.py", self.m_S2C_Json, "g_S2C")
         self.output_py_data("pydata/c2s.py", self.m_C2S_Json, "g_C2S")
+        
+    
+    def make_py_code(self):
+        self.del_directory("pycode")
+        self._ensure_directory_exists("pycode")
+        
+        for module_name, cls_dict in self.m_Module_S2C_Class.items():
+            txt = "# -*- coding: utf-8 -*-\n\nfrom sendpublic import *\nfrom typing import Protocol\n\n"
+            for name, cls_type in cls_dict.items():
+                mid1, mid2, json_list = self.get_cls_json(cls_type)
+                dataTypeName = "D_"+name
+                txt += self.make_code_datetype(dataTypeName, json_list)
+                
+                txt += g_FUNC_S2C_TEXT_2.replace("AAAFunc", name).replace("DateMid1", str(mid1)).replace("DateMid2", str(mid2)).replace("DateType", dataTypeName)
+            self.output_text(f"pycode/{module_name}.py", txt)
 
 
-	
+    def getTypeStr(self, itype):
+        if itype in [INT_16, INT_32, INT_64]:
+            return "int"
+        elif itype in [INT_16_LIST, INT_32_LIST, INT_64_LIST]:
+            return "list[int]"
+        elif itype in [FLOAT_32, FLOAT_32]:
+            return "float"
+        elif itype in [FLOAT_32_LIST, FLOAT_64_LIST]:
+            return "list[float]"
+        elif itype == STR:
+            return "str"
+        elif itype == STR_LIST:
+            return "list[str]"
+        else:
+            raise Exception("Unknown type: " + str(itype))
+    
+    def make_code_datetype(self, name, json_list):
+        dataTypeName = name
+        dataType = g_S2C_DATA_TEXT.replace("DateType", dataTypeName)
+        
+        for i in json_list:
+            if isinstance(i, tuple):
+                if i[0] == OBJ:
+                    newName = name + "_" + i[1]
+                    dataType = self.make_code_datetype(newName, i[2]) + dataType
+                    dataType += f"    {i[1]}: {newName}\n"
+                elif i[0] == OBJ_LIST:
+                    newName = name + "_" + i[1]
+                    dataType = self.make_code_datetype(newName, i[2]) + dataType
+                    dataType += f"    {i[1]}: list[{newName}]\n"
+                else:
+                    typeName = self.getTypeStr(i[0])
+                    dataType += f"    {i[1]}: {typeName}\n"
+        return  dataType + "\n\n"
+
+    def del_directory(self, directory):
+        if os.path.exists(directory):
+            shutil.rmtree(directory)
+   
+   
     def _ensure_directory_exists(self, directory):
         os.makedirs(directory, exist_ok=True)
 
@@ -172,11 +250,17 @@ class MakeJson:
         with open(file_path, 'w', encoding='utf-8') as file:
             json.dump(new_data, file, ensure_ascii=False, indent=4)
             
+            
+    def output_text(self, file_path, text):
+        with open(file_path, 'w', encoding='utf-8') as file:
+            file.write(text)
+
+            
 def main():
     folder_path = "_protocol"
     obj = MakeJson()
     obj.import_classes_in_files(folder_path)
     obj.make_json()
-    
+    obj.make_py_code()
 
 main()
