@@ -4,7 +4,7 @@ import os
 import glob
 import importlib
 import inspect
-from protocol.base import *
+from _protocol.base import *
 import json
 
 
@@ -38,7 +38,7 @@ class MakeJson:
         # print(f"Classes in module {module_name}: {class_names}")
 
 
-        module_name = module_name.replace("protocol.", "")
+        module_name = module_name.replace("_protocol.", "")
 
         #获取遍历里面的所有类
         for cls in classes:
@@ -148,13 +148,22 @@ class MakeJson:
 
             dict1 = self.m_C2S_Json[mid1]
             dict1[mid2] = json_list
-            
-        self.output_json("s2c.json", self.m_S2C_Json)
-        self.output_json("c2s.json", self.m_C2S_Json)
-        self.output_py("s2c.py", self.m_S2C_Json, "g_S2C")
-        self.output_py("c2s.py", self.m_C2S_Json, "g_C2S")
 
-    def output_py(self, file_path, new_data, name):
+
+        self._ensure_directory_exists("jsondata")
+        self._ensure_directory_exists("pydata")
+
+        self.output_json("jsondata/s2c.json", self.m_S2C_Json)
+        self.output_json("jsondata/c2s.json", self.m_C2S_Json)
+        self.output_py_data("pydata/s2c.py", self.m_S2C_Json, "g_S2C")
+        self.output_py_data("pydata/c2s.py", self.m_C2S_Json, "g_C2S")
+
+
+	
+    def _ensure_directory_exists(self, directory):
+        os.makedirs(directory, exist_ok=True)
+
+    def output_py_data(self, file_path, new_data, name):
         dict_string = repr(new_data)
         with open(file_path, 'w', encoding='utf-8') as file:
             file.write(name + ' = ' + dict_string)
@@ -163,9 +172,8 @@ class MakeJson:
         with open(file_path, 'w', encoding='utf-8') as file:
             json.dump(new_data, file, ensure_ascii=False, indent=4)
             
-            
 def main():
-    folder_path = "protocol"
+    folder_path = "_protocol"
     obj = MakeJson()
     obj.import_classes_in_files(folder_path)
     obj.make_json()
