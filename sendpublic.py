@@ -162,7 +162,7 @@ def UnPackFunc(json_list):
 
     return data
 
-def doUnpackData(pid:int, mid1: int, mid2: int):
+def doUnpackData(mid1: int, mid2: int):
     json_list = pydata.s2c.g_C2S.get(mid1, {}).get(mid2)
     
     data = UnPackFunc(json_list)
